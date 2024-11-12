@@ -1,11 +1,16 @@
 import { Schema, model } from "mongoose";
-import { hash, compare } from "bcryptjs";
-import { sign } from "jsonwebtoken";
+// import { hash, compare } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
+const { hash, compare } = bcrypt;
+// import { sign } from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
+const { sign } = jwt;
+
 
 const UserSchema = new Schema(
   {
     avatar: { type: String, default: "" },
-    name: { type: String, required: true },
+    name: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     verified: { type: Boolean, default: false },
