@@ -1,8 +1,199 @@
+// import { uploadPicture } from "../middleware/uploadPictureMiddleware.js";
+// import Comment from "../models/Comment.js";
+// import Post from "../models/Post.js";
+// import User from "../models/User.js";
+// import { fileRemover } from "../utils/fileRemover.js";
+
+
+
+
+
+
+
+
+// const updateProfilePicture = async (req, res, next) => {
+//   try {
+//     const upload = uploadPicture.single("profilePicture");
+
+//     upload(req, res, async function (err) {
+//       if (err) {
+//         const error = new Error(
+//           "An unknown error occured when uploading " + err.message
+//         );
+//         next(error);
+//       } else {
+//         // every thing went well
+//         if (req.file) {
+//           let filename;
+//           let updatedUser = await User.findById(req.user._id);
+//           filename = updatedUser.avatar;
+//           if (filename) {
+//             fileRemover(filename);
+//           }
+//           updatedUser.avatar = req.file.filename;
+//           await updatedUser.save();
+//           res.json({
+//             _id: updatedUser._id,
+//             avatar: updatedUser.avatar,
+//             name: updatedUser.name,
+//             email: updatedUser.email,
+//             verified: updatedUser.verified,
+//             admin: updatedUser.admin,
+//             token: await updatedUser.generateJWT(),
+//           });
+//         } else {
+//           let filename;
+//           let updatedUser = await User.findById(req.user._id);
+//           filename = updatedUser.avatar;
+//           updatedUser.avatar = "";
+//           await updatedUser.save();
+//           fileRemover(filename);
+//           res.json({
+//             _id: updatedUser._id,
+//             avatar: updatedUser.avatar,
+//             name: updatedUser.name,
+//             email: updatedUser.email,
+//             verified: updatedUser.verified,
+//             admin: updatedUser.admin,
+//             token: await updatedUser.generateJWT(),
+//           });
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+// const deleteUser = async (req, res, next) => {
+//   try {
+//     let user = await User.findById(req.params.userId);
+
+//     if (!user) {
+//       throw new Error("User no found");
+//     }
+
+//     const postsToDelete = await Post.find({ user: user._id });
+//     const postIdsToDelete = postsToDelete.map((post) => post._id);
+
+//     await Comment.deleteMany({
+//       post: { $in: postIdsToDelete },
+//     });
+
+//     await Post.deleteMany({
+//       _id: { $in: postIdsToDelete },
+//     });
+
+//     postsToDelete.forEach((post) => {
+//       fileRemover(post.photo);
+//     });
+
+//     await user.remove();
+//     fileRemover(user.avatar);
+
+//     res.status(204).json({ message: "User is deleted successfully" });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// export {
+//   registerUser,
+//   loginUser,
+//   userProfile,
+//   updateProfile,
+//   updateProfilePicture,
+//   getAllUsers,
+//   deleteUser,
+// };
+
+
 import { uploadPicture } from "../middleware/uploadPictureMiddleware.js";
-import Comment from "../models/Comment.js";
-import Post from "../models/Post.js";
+import { v2 as cloudinary } from 'cloudinary';
 import User from "../models/User.js";
-import { fileRemover } from "../utils/fileRemover.js";
+import Post from "../models/Post.js";
+import Comment from "../models/Comment.js";
+
+// ... (keep other imports and functions)
+
+const updateProfilePicture = async (req, res, next) => {
+  try {
+    const updatedUser = await User.findById(req.user._id);
+
+    if (req.file) {
+      // Delete old avatar from Cloudinary if it exists
+      if (updatedUser.avatar) {
+        const publicId = updatedUser.avatar.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+      
+      updatedUser.avatar = req.file.path;
+    } else {
+      if (updatedUser.avatar) {
+        const publicId = updatedUser.avatar.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+        updatedUser.avatar = "";
+      }
+    }
+
+    await updatedUser.save();
+    res.json({
+      _id: updatedUser._id,
+      avatar: updatedUser.avatar,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      verified: updatedUser.verified,
+      admin: updatedUser.admin,
+      token: await updatedUser.generateJWT(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteUser = async (req, res, next) => {
+  try {
+    let user = await User.findById(req.params.userId);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const postsToDelete = await Post.find({ user: user._id });
+    const postIdsToDelete = postsToDelete.map((post) => post._id);
+
+    await Comment.deleteMany({
+      post: { $in: postIdsToDelete },
+    });
+
+    // Delete post images from Cloudinary
+    for (const post of postsToDelete) {
+      if (post.photo) {
+        const publicId = post.photo.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+    }
+
+    await Post.deleteMany({
+      _id: { $in: postIdsToDelete },
+    });
+
+    // Delete user avatar from Cloudinary
+    if (user.avatar) {
+      const publicId = user.avatar.split('/').pop().split('.')[0];
+      await cloudinary.uploader.destroy(publicId);
+    }
+
+    await user.remove();
+
+    res.status(204).json({ message: "User is deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 const registerUser = async (req, res, next) => {
   try {
@@ -35,6 +226,7 @@ const registerUser = async (req, res, next) => {
     next(error);
   }
 };
+
 
 const loginUser = async (req, res, next) => {
   try {
@@ -87,6 +279,7 @@ const userProfile = async (req, res, next) => {
   }
 };
 
+
 const updateProfile = async (req, res, next) => {
   try {
     const userIdToUpdate = req.params.userId;
@@ -116,7 +309,6 @@ const updateProfile = async (req, res, next) => {
     } else if (req.body.password) {
       user.password = req.body.password;
     }
-
     const updatedUserProfile = await user.save();
 
     res.json({
@@ -133,59 +325,6 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-const updateProfilePicture = async (req, res, next) => {
-  try {
-    const upload = uploadPicture.single("profilePicture");
-
-    upload(req, res, async function (err) {
-      if (err) {
-        const error = new Error(
-          "An unknown error occured when uploading " + err.message
-        );
-        next(error);
-      } else {
-        // every thing went well
-        if (req.file) {
-          let filename;
-          let updatedUser = await User.findById(req.user._id);
-          filename = updatedUser.avatar;
-          if (filename) {
-            fileRemover(filename);
-          }
-          updatedUser.avatar = req.file.filename;
-          await updatedUser.save();
-          res.json({
-            _id: updatedUser._id,
-            avatar: updatedUser.avatar,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            verified: updatedUser.verified,
-            admin: updatedUser.admin,
-            token: await updatedUser.generateJWT(),
-          });
-        } else {
-          let filename;
-          let updatedUser = await User.findById(req.user._id);
-          filename = updatedUser.avatar;
-          updatedUser.avatar = "";
-          await updatedUser.save();
-          fileRemover(filename);
-          res.json({
-            _id: updatedUser._id,
-            avatar: updatedUser.avatar,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            verified: updatedUser.verified,
-            admin: updatedUser.admin,
-            token: await updatedUser.generateJWT(),
-          });
-        }
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 const getAllUsers = async (req, res, next) => {
   try {
@@ -224,37 +363,7 @@ const getAllUsers = async (req, res, next) => {
   }
 };
 
-const deleteUser = async (req, res, next) => {
-  try {
-    let user = await User.findById(req.params.userId);
 
-    if (!user) {
-      throw new Error("User no found");
-    }
-
-    const postsToDelete = await Post.find({ user: user._id });
-    const postIdsToDelete = postsToDelete.map((post) => post._id);
-
-    await Comment.deleteMany({
-      post: { $in: postIdsToDelete },
-    });
-
-    await Post.deleteMany({
-      _id: { $in: postIdsToDelete },
-    });
-
-    postsToDelete.forEach((post) => {
-      fileRemover(post.photo);
-    });
-
-    await user.remove();
-    fileRemover(user.avatar);
-
-    res.status(204).json({ message: "User is deleted successfully" });
-  } catch (error) {
-    next(error);
-  }
-};
 
 export {
   registerUser,
@@ -265,3 +374,4 @@ export {
   getAllUsers,
   deleteUser,
 };
+
