@@ -146,6 +146,52 @@ const updatePost = async (req, res, next) => {
   }
 };
 
+// const updatePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findOne({ slug: req.params.slug });
+
+//     if (!post) {
+//       const error = new Error("Post was not found");
+//       return next(error);
+//     }
+
+//     const handleUpdatePostData = async (data) => {
+//       const { title, caption, slug, body, tags, categories } = JSON.parse(data);
+//       post.title = title || post.title;
+//       post.caption = caption || post.caption;
+//       post.slug = slug || post.slug;
+//       post.body = body || post.body;
+//       post.tags = tags || post.tags;
+//       post.categories = categories || post.categories;
+//       const updatedPost = await post.save();
+//       return res.json(updatedPost);
+//     };
+
+//     if (req.file) {
+//       // Delete old image from Cloudinary if it exists
+//       if (post.photo) {
+//         const publicId = post.photo.split('/').pop().split('.')[0];
+//         await cloudinary.uploader.destroy(publicId);
+//       }
+      
+//       post.photo = req.file.path;
+//       handleUpdatePostData(req.body.document);
+//     } else {
+//       if (post.photo) {
+//         const publicId = post.photo.split('/').pop().split('.')[0];
+//         await cloudinary.uploader.destroy(publicId);
+//         post.photo = "";
+//       }
+//       handleUpdatePostData(req.body.document);
+//     }
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+
+
 const deletePost = async (req, res, next) => {
   try {
     const post = await Post.findOneAndDelete({ slug: req.params.slug });
