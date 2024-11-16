@@ -164,6 +164,9 @@ app.use((req, res, next) => {
 // CORS setup
 const corsOptions = {
   exposedHeaders: "*",
+  origin: 'http://localhost:3000', // Front-end origin
+  methods: 'GET,POST,PUT,DELETE', // Allowed methods
+  allowedHeaders: 'Content-Type,Authorization',
 };
 app.use(cors(corsOptions));
 
